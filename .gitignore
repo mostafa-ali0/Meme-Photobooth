@@ -1,0 +1,4 @@
+.DS_Store
+*.pyc
+__pycache__/
+sap-cam-booth.pdf

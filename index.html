@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAP Cam Booth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <!-- SAP trapezoid scatter background -->
+  <div class="bg-scatter" id="bg-scatter"></div>
+
+  <header>
+    <img src="assets/sap-logo.png" alt="SAP" class="logo" />
+    <div class="title-wrap">
+      <h1>Cam Booth</h1>
+      <p class="subtitle">Recreate 4 memes · strike a pose</p>
+    </div>
+  </header>
+
+  <!-- STAGE 1: PICK MEMES -->
+  <section id="pick-stage" class="stage">
+    <div class="glass">
+      <h2>Pick 4 memes to recreate</h2>
+      <p class="hint"><span id="pick-count">0</span> / 4 selected</p>
+      <div id="meme-grid" class="meme-grid"></div>
+      <button id="start-btn" class="btn-glow" disabled>
+        <span>Start photoshoot</span>
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- STAGE 2: PHOTOSHOOT -->
+  <section id="shoot-stage" class="stage hidden">
+    <div class="glass">
+      <div class="progress-wrap">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <p class="progress-label">Shot <span id="shot-num">1</span> of 4 · <span id="shots-done">0</span> captured</p>
+      </div>
+
+      <div class="shoot-row">
+        <div class="pane">
+          <h3>You</h3>
+          <div class="frame spotlight">
+            <video id="cam" autoplay playsinline></video>
+            <img id="captured-preview" class="hidden" alt="Your captured shot" />
+            <div id="countdown" class="countdown hidden"></div>
+            <div id="flash" class="flash"></div>
+          </div>
+        </div>
+        <div class="pane">
+          <h3>Recreate this</h3>
+          <div class="frame spotlight">
+            <img id="target-meme" alt="Meme to recreate" />
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="capture-btn" class="btn-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2" fill="none"/><path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L18 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>
+          <span>Take picture</span>
+        </button>
+        <button id="retake-btn" class="btn-ghost hidden">↺ Retake</button>
+        <button id="next-btn" class="btn-glow hidden"><span>Keep &amp; next</span></button>
+      </div>
+
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </section>
+
+  <!-- STAGE 3: RESULT -->
+  <section id="result-stage" class="stage hidden">
+    <div class="glass">
+      <h2>Your photobooth strip</h2>
+      <div id="strip-preview" class="strip-preview"></div>
+      <div class="controls">
+        <button id="pdf-btn" class="btn-glow"><span>Download PDF to print</span></button>
+        <button id="restart-btn" class="btn-ghost">↺ New photoshoot</button>
+      </div>
+    </div>
+  </section>
+
+  <canvas id="work-canvas" class="hidden"></canvas>
+  <script src="src/app.js"></script>
+</body>
+</html>
