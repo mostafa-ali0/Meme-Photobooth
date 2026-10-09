@@ -24,23 +24,4 @@ Opens `http://localhost:8000`. Allow camera access when prompted.
 3. **Print** – download a 4×6 PDF strip (your photos left, memes right, SAP
    footer) ready to print.
 
-## Layout
-
-```
-.
-├── index.html          # markup, 3 stages (pick / shoot / result)
-├── serve.py            # tiny static server (localhost, no-cache)
-├── readme.md
-├── src/
-│   ├── app.js          # all app logic + PDF export
-│   └── style.css       # SAP-blue theme, trapezoid-scatter background
-├── assets/
-│   ├── sap-logo.png    # used in header, strip footer, PDF (jsPDF needs PNG)
-│   └── sap-logo-png-svg.webp   # original source logo
-└── memes/              # the 8 source meme images
-```
-
-## Notes
-
-- jsPDF loaded from CDN; needs internet on first load.
-- Captured photos never leave the browser — all client-side.
+> jsPDF loaded from CDN; needs internet on first load.
