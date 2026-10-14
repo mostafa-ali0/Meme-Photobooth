@@ -1,5 +1,5 @@
 // ---- Lofi Cam Booth ----
-// Flow: pick 4 memes -> shoot each (capture/retake) -> export PDF strip.
+// Flow: pick 4 memes -> shoot each (capture/retake) -> export PNG strip.
 
 const MEMES_DIR = "memes/";
 const LOGO_SRC = "assets/sap-logo.png";
@@ -283,8 +283,11 @@ restartBtn.addEventListener("click", () => {
   pickStage.classList.remove("hidden");
 });
 
-// ---- PDF export (film-strip layout, matches template) ----
-pdfBtn.addEventListener("click", exportPdf);
+// ---- PNG export (film-strip layout, matches template) ----
+pdfBtn.addEventListener("click", exportPng);
+
+// scale factor: layout authored in 288x432 pt; render at 3x for print quality
+const PNG_SCALE = 3;
 
 function loadImg(src) {
   return new Promise((resolve, reject) => {
@@ -297,7 +300,7 @@ function loadImg(src) {
 }
 
 // draw an image into a target rect, cover-cropped
-function drawCover(pdf, img, x, y, w, h) {
+function drawCover(ctx, img, x, y, w, h) {
   const ir = img.width / img.height;
   const tr = w / h;
   let sx = 0, sy = 0, sw = img.width, sh = img.height;
@@ -308,38 +311,40 @@ function drawCover(pdf, img, x, y, w, h) {
     sh = img.width / tr;
     sy = (img.height - sh) / 2;
   }
-  // use a scratch canvas to crop, then add to pdf
-  const c = document.createElement("canvas");
-  c.width = sw; c.height = sh;
-  c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-  pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", x, y, w, h);
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
-// draw SAP trapezoid scatter on the PDF background (navy page)
-function drawPdfScatter(pdf, PW, PH) {
-  // one SAP trapezoid outline at (x,y) with width w
+// rounded-rect path helper
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// draw SAP trapezoid scatter on the navy page
+function drawScatter(ctx, PW, PH) {
   const trap = (x, y, w, mode) => {
     const h = w * 0.42;
     const pts = [ [x, y], [x + w, y], [x + w - h * 0.62, y + h], [x, y + h] ];
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    ctx.lineTo(pts[1][0], pts[1][1]);
+    ctx.lineTo(pts[2][0], pts[2][1]);
+    ctx.lineTo(pts[3][0], pts[3][1]);
+    ctx.closePath();
     if (mode === "fill") {
-      pdf.setFillColor(60, 95, 180);
-      pdf.lines(
-        [[pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]],
-         [pts[2][0]-pts[1][0], pts[2][1]-pts[1][1]],
-         [pts[3][0]-pts[2][0], pts[3][1]-pts[2][1]]],
-        pts[0][0], pts[0][1], [1,1], "F", true);
+      ctx.fillStyle = "rgb(60, 95, 180)";
+      ctx.fill();
     } else {
-      if (mode === "red") pdf.setDrawColor(224, 26, 79);
-      else pdf.setDrawColor(70, 110, 190);
-      pdf.setLineWidth(0.8);
-      pdf.lines(
-        [[pts[1][0]-pts[0][0], pts[1][1]-pts[0][1]],
-         [pts[2][0]-pts[1][0], pts[2][1]-pts[1][1]],
-         [pts[3][0]-pts[2][0], pts[3][1]-pts[2][1]]],
-        pts[0][0], pts[0][1], [1,1], "S", true);
+      ctx.strokeStyle = mode === "red" ? "rgb(224, 26, 79)" : "rgb(70, 110, 190)";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
     }
   };
-  // sparse scatter in margins/corners so photos stay clear
   trap(6, 30, 34, "line");
   trap(10, 70, 30, "line");
   trap(PW - 46, 40, 34, "line");
@@ -348,19 +353,22 @@ function drawPdfScatter(pdf, PW, PH) {
   trap(PW - 44, PH - 70, 32, "line");
 }
 
-async function exportPdf() {
+async function exportPng() {
   pdfBtn.disabled = true;
   pdfBtn.querySelector("span").textContent = "Rendering…";
   try {
-    const { jsPDF } = window.jspdf;
-    // Portrait 4x6 photo print (inches -> pts). 4in x 6in at 72dpi.
-    const pdf = new jsPDF({ unit: "pt", format: [288, 432] });
+    // Portrait 4x6 photo print, authored in pts, rendered at PNG_SCALE.
     const PW = 288, PH = 432;
+    const canvas = document.createElement("canvas");
+    canvas.width = PW * PNG_SCALE;
+    canvas.height = PH * PNG_SCALE;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(PNG_SCALE, PNG_SCALE);
 
     // SAP navy page background
-    pdf.setFillColor(21, 40, 122); // --sap-navy
-    pdf.rect(0, 0, PW, PH, "F");
-    drawPdfScatter(pdf, PW, PH);
+    ctx.fillStyle = "rgb(21, 40, 122)"; // --sap-navy
+    ctx.fillRect(0, 0, PW, PH);
+    drawScatter(ctx, PW, PH);
 
     const margin = 14;
     const gap = 6;
@@ -378,44 +386,48 @@ async function exportPdf() {
     for (let i = 0; i < SHOT_COUNT; i++) {
       const y = margin + i * (rowH + gap);
       // left = your photo, right = meme (matches template)
-      drawCover(pdf, shotImgs[i], margin, y, colW, rowH);
-      drawCover(pdf, memeImgs[i], margin + colW + gap, y, colW, rowH);
+      drawCover(ctx, shotImgs[i], margin, y, colW, rowH);
+      drawCover(ctx, memeImgs[i], margin + colW + gap, y, colW, rowH);
     }
 
     // SAP-blue footer bar with logo
     const fy = PH - margin - footerH + 4;
     const fh = footerH - 4;
-    // gradient-ish bar: deep blue fill + lighter top strip
-    pdf.setFillColor(0, 87, 184);          // --sap-deep
-    pdf.roundedRect(margin, fy, usableW, fh, 5, 5, "F");
-    pdf.setFillColor(0, 143, 211);         // --sap-bright accent strip
-    pdf.rect(margin, fy, usableW, 4, "F");
+    ctx.fillStyle = "rgb(0, 87, 184)";     // --sap-deep
+    roundRect(ctx, margin, fy, usableW, fh, 5);
+    ctx.fill();
+    ctx.fillStyle = "rgb(0, 143, 211)";    // --sap-bright accent strip
+    ctx.fillRect(margin, fy, usableW, 4);
 
     // logo on footer (on white chip for contrast)
     const lh = 18;
     const lw = lh * (logo.width / logo.height);
     const chipPad = 4;
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(margin + 8 - chipPad, fy + (fh - lh) / 2 - chipPad,
-      lw + chipPad * 2, lh + chipPad * 2, 3, 3, "F");
-    const logoCanvas = document.createElement("canvas");
-    logoCanvas.width = logo.width; logoCanvas.height = logo.height;
-    logoCanvas.getContext("2d").drawImage(logo, 0, 0);
-    pdf.addImage(logoCanvas.toDataURL("image/png"), "PNG",
-      margin + 8, fy + (fh - lh) / 2, lw, lh);
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    roundRect(ctx, margin + 8 - chipPad, fy + (fh - lh) / 2 - chipPad,
+      lw + chipPad * 2, lh + chipPad * 2, 3);
+    ctx.fill();
+    ctx.drawImage(logo, margin + 8, fy + (fh - lh) / 2, lw, lh);
 
     // footer text
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(14);
-    pdf.text("Cam Booth", PW - margin - 12, fy + fh / 2 + 5, { align: "right" });
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.font = "bold 14px helvetica, Arial, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("Cam Booth", PW - margin - 12, fy + fh / 2 + 5);
 
-    pdf.save("sap-cam-booth.pdf");
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sap-cam-booth.png";
+    a.click();
+    URL.revokeObjectURL(url);
   } catch (err) {
-    alert("PDF export failed: " + err.message);
+    alert("PNG export failed: " + err.message);
   } finally {
     pdfBtn.disabled = false;
-    pdfBtn.querySelector("span").textContent = "Download PDF to print";
+    pdfBtn.querySelector("span").textContent = "Download PNG to print";
   }
 }
 
